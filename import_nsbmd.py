@@ -1,6 +1,6 @@
 from enum import IntEnum, IntFlag
 from os.path import isfile
-from .utils import read8, read16, read32, read_str, log, debug, parse_dictionary, fixed_to_float
+from .utils import read8, read16, read32, read_str, log, debug, parse_dictionary, fixed_to_float, to_rgb
 import numpy as np
 
 class ScalingRule(IntEnum):
@@ -132,13 +132,278 @@ class NSBMDNode():
             offset += 24
         return offset
 
+class NSBMDPaletteMaterialData():
+    def __init__(self, name, material_id, bound):
+        self.name = name
+        self.materialId = material_id
+        self.bound = bound
+
+class NSBMDTextureMaterialData():
+    def __init__(self, name, material_id, bound):
+        self.name = name
+        self.materialId = material_id
+        self.bound = bound
+
+class PolygonMode(IntEnum):
+    MODULATE = 0
+    DECAL = 1
+    TOON = 2
+    SHADOW = 3
+
+class CullMode(IntEnum):
+    NONE = 0
+    FRONT = 1
+    BACK = 2
+    BOTH = 3
+
+class NSBMDMaterialPolygonAttributes():
+    def __init__(self):
+        self.lights = [False, False, False, False]
+        self.polyMode = PolygonMode.MODULATE
+        self.cullMode = CullMode.NONE
+        self.polygonId = 0
+        self.alpha = 0
+        self.xluDepthUpdate = False
+        self.farClipping = False
+        self.display1Dot = False
+        self.depthTest = False
+        self.fog = False
+        pass
+
+    def parse_attributes(self, attributes, report_func):
+        light = attributes & 0xF
+        self.lights[0] = (light & 0x1) != 0
+        self.lights[1] = (light & 0x2) != 0
+        self.lights[2] = (light & 0x4) != 0
+        self.lights[3] = (light & 0x8) != 0
+        log('Lights: %s' % str(self.lights), report_func)
+
+        polyMode = (attributes >> 4) & 0x3
+        self.polyMode = PolygonMode(polyMode)
+        log('Polygon mode: %s' % self.polyMode.name, report_func)
+
+        cullMode = (attributes >> 6) & 0x3
+        self.cullMode = CullMode(cullMode)
+        log('Cull mode: %s' % self.cullMode.name, report_func)
+
+        polygonId = (attributes >> 24) & 0x3F
+        self.polygonId = polygonId
+        log('Polygon ID: %d' % self.polygonId, report_func)
+
+        alpha = (attributes >> 16) & 0x1F
+        self.alpha = alpha
+        log('Alpha: %d' % self.alpha, report_func)
+
+        self.xluDepthUpdate = (attributes >> 11) & 0x1 != 0
+        log('XLU depth update: %s' % self.xluDepthUpdate, report_func)
+
+        self.farClipping = (attributes >> 12) & 0x1 != 0
+        log('Far clipping: %s' % self.farClipping, report_func)
+
+        self.display1Dot = (attributes >> 13) & 0x1 != 0
+        log('Display 1 dot polygons: %s' % self.display1Dot, report_func)
+
+        self.depthTest = (attributes >> 14) & 0x1 != 0
+        log('Depth test: %s' % self.depthTest, report_func)
+
+        self.fog = (attributes >> 15) & 0x1 != 0
+        log('Fog: %s' % self.fog, report_func)
+
+class TextureFormat(IntEnum):
+    NONE = 0
+    A3I5 = 1
+    PLTT4 = 2
+    PLTT16 = 3
+    PLTT256 = 4
+    COMP4X4 = 5
+    A5I3 = 6
+    DIRECT = 7
+
+class TextureConversionMode(IntEnum):
+    NONE = 0
+    TEXCOORD = 1
+    NORMAL = 2
+    VERTEX = 3
+
+class TextureSSize(IntEnum):
+    S8 = 0
+    S16 = 1
+    S32 = 2
+    S64 = 3
+    S128 = 4
+    S256 = 5
+    S512 = 6
+    S1024 = 7
+
+class TextureTSize(IntEnum):
+    T8 = 0
+    T16 = 1
+    T32 = 2
+    T64 = 3
+    T128 = 4
+    T256 = 5
+    T512 = 6
+    T1024 = 7
+
+class TextureRepeat(IntEnum):
+    NONE = 0
+    S = 1
+    T = 2
+    ST = 3
+
+class TextureFlip(IntEnum):
+    NONE = 0
+    S = 1
+    T = 2
+    ST = 3
+
+class TexturePalette0Mode(IntEnum):
+    USE = 0
+    TRANSPARENT = 1
+
+class NSBMDMaterialTextureImageParameters():
+    def __init__(self):
+        self.address = 0
+        self.textureFormat = TextureFormat.NONE
+        self.textureConversionMode = TextureConversionMode.NONE
+        self.textureSSize = TextureSSize.S8
+        self.textureTSize = TextureTSize.T8
+        self.textureRepeat = TextureRepeat.NONE
+        self.textureFlip = TextureFlip.NONE
+        self.texturePalette0Mode = TexturePalette0Mode.USE
+
+    def parse_parameters(self, parameters, report_func):
+        self.address = (parameters & 0xFFFF) << 3
+        log('Address: %d' % self.address, report_func)
+
+        textureFormat = (parameters >> 26) & 0x7
+        self.textureFormat = TextureFormat(textureFormat)
+        log('Texture format: %s' % self.textureFormat.name, report_func)
+
+        textureConversionMode = (parameters >> 30) & 0x3
+        self.textureConversionMode = TextureConversionMode(textureConversionMode)
+        log('Texture conversion mode: %s' % self.textureConversionMode.name, report_func)
+
+        textureSSize = (parameters >> 20) & 0x7
+        self.textureSSize = TextureSSize(textureSSize)
+        log('Texture S size: %s' % self.textureSSize.name, report_func)
+
+        textureTSize = (parameters >> 23) & 0x7
+        self.textureTSize = TextureTSize(textureTSize)
+        log('Texture T size: %s' % self.textureTSize.name, report_func)
+
+        textureRepeat = (parameters >> 16) & 0x3
+        self.textureRepeat = TextureRepeat(textureRepeat)
+        log('Texture repeat: %s' % self.textureRepeat.name, report_func)
+
+        textureFlip = (parameters >> 18) & 0x3
+        self.textureFlip = TextureFlip(textureFlip)
+        log('Texture flip: %s' % self.textureFlip.name, report_func)
+
+        texturePalette0Mode = (parameters >> 29) & 0x1
+        self.texturePalette0Mode = TexturePalette0Mode(texturePalette0Mode)
+        log('Texture palette 0 mode: %s' % self.texturePalette0Mode.name, report_func)
+
+class MaterialFlags(IntFlag):
+    TEXTURE_MATRIX_USE = 0x0001
+    SCALE_ONE = 0x0002
+    ROTATION_ZERO = 0x0004
+    TRANSLATION_ZERO = 0x0008
+    WIDTH_HEIGHT_SAME = 0x0010
+    WIREFRAME = 0x0020
+    DIFFUSE = 0x0040
+    AMBIENT = 0x0080
+    VERTEX_COLOR = 0x0100
+    SPECULAR = 0x0200
+    EMISSION = 0x0400
+    SHININESS = 0x0800
+    TEXTURE_BASE_PALETTE = 0x1000
+    EFFECT_MATRIX_USE = 0x2000
+
+class NSBMDMaterialFlags():
+    def __init__(self):
+        self.textureMatrixUse = False
+        self.scaleOne = False
+        self.rotationZero = False
+        self.translationZero = False
+        self.widthHeightSame = False # not sure if this is needed because this is mostly set during execution
+        self.wireframe = False
+        self.diffuse = False
+        self.ambient = False
+        self.vertexColor = False
+        self.specular = False
+        self.emission = False
+        self.shininess = False
+        self.textureBasePalette = False
+        self.effectMatrixUse = False
+        pass
+
+    def parse_flags(self, flags, report_func):
+        self.textureMatrixUse = (flags & MaterialFlags.TEXTURE_MATRIX_USE) != 0
+        log('Texture matrix use: %s' % self.textureMatrixUse, report_func)
+
+        self.scaleOne = (flags & MaterialFlags.SCALE_ONE) != 0
+        log('Scale one: %s' % self.scaleOne, report_func)
+
+        self.rotationZero = (flags & MaterialFlags.ROTATION_ZERO) != 0
+        log('Rotation zero: %s' % self.rotationZero, report_func)
+
+        self.translationZero = (flags & MaterialFlags.TRANSLATION_ZERO) != 0
+        log('Translation zero: %s' % self.translationZero, report_func)
+
+        self.widthHeightSame = (flags & MaterialFlags.WIDTH_HEIGHT_SAME) != 0
+        log('Width height same: %s' % self.widthHeightSame, report_func)
+
+        self.wireframe = (flags & MaterialFlags.WIREFRAME) != 0
+        log('Wireframe: %s' % self.wireframe, report_func)
+
+        self.diffuse = (flags & MaterialFlags.DIFFUSE) != 0
+        log('Diffuse: %s' % self.diffuse, report_func)
+
+        self.ambient = (flags & MaterialFlags.AMBIENT) != 0
+        log('Ambient: %s' % self.ambient, report_func)
+
+        self.vertexColor = (flags & MaterialFlags.VERTEX_COLOR) != 0
+        log('Vertex color: %s' % self.vertexColor, report_func)
+
+        self.specular = (flags & MaterialFlags.SPECULAR) != 0
+        log('Specular: %s' % self.specular, report_func)
+
+        self.emission = (flags & MaterialFlags.EMISSION) != 0
+        log('Emission: %s' % self.emission, report_func)
+
+        self.shininess = (flags & MaterialFlags.SHININESS) != 0
+        log('Shininess: %s' % self.shininess, report_func)
+
+        self.textureBasePalette = (flags & MaterialFlags.TEXTURE_BASE_PALETTE) != 0
+        log('Texture base palette: %s' % self.textureBasePalette, report_func)
+
+        self.effectMatrixUse = (flags & MaterialFlags.EFFECT_MATRIX_USE) != 0
+        log('Effect matrix use: %s' % self.effectMatrixUse, report_func)
+
+class NSBMDMaterial():
+    def __init__(self, name):
+        self.name = name
+        self.textureMatData = []
+        self.paletteMatData = []
+
+    def add_texture_mat_data(self, texture_mat_data):
+        self.textureMatData.append(texture_mat_data)
+    
+    def add_palette_mat_data(self, palette_mat_data):
+        self.paletteMatData.append(palette_mat_data)
+
 class NSBMDModel():
     def __init__(self, name):
         self.name = name
         self.nodes = []
+        self.materials = []
 
     def add_node(self, node):
         self.nodes.append(node)
+    
+    def add_material(self, material):
+        self.materials.append(material)
 
 class NSBMD():
     def __init__(self, has_textures, model_offset, texture_offset):
@@ -280,5 +545,109 @@ class NSBMDImporter():
             model.matIdxData = materialset_data[offsetDictPlttToMat + dict_size:matIdxDataEnd].tobytes() # no idea how this is used, but essential
             log('Material id data: %s' % model.matIdxData.hex(" "), self.report)
             
+            for material_key, material_value in materialset_dictionary.items():
+                material = NSBMDMaterial(material_key)
+                material_data = materialset_data[material_value:]
+                diffAmb = read32(material_data, 0x04)
+                material.diffuse = to_rgb(diffAmb & 0x7FFF)
+                log("Diffuse: R: %d G: %d B: %d" % material.diffuse, self.report)
+                material.ambient = to_rgb((diffAmb >> 16) & 0x7FFF)
+                log("Ambient: R: %d G: %d B: %d" % material.ambient, self.report)
+                material.vertexColor = (diffAmb >> 15) & 0x01 != 0
+                log("Vertex color: %s" % material.vertexColor, self.report)
+                specEmi = read32(material_data, 0x08)
+                material.specular = to_rgb(specEmi & 0x7FFF)
+                log("Specular: R: %d G: %d B: %d" % material.specular, self.report)
+                material.emission = to_rgb((specEmi >> 16) & 0x7FFF)
+                log("Emission: R: %d G: %d B: %d" % material.emission, self.report)
+                material.shininess = (specEmi >> 15) & 0x01 != 0
+                log("Shininess: %s" % material.shininess, self.report)
+                polygonAttrData = read32(material_data, 0x0C)
+                polygonAttributes = NSBMDMaterialPolygonAttributes()
+                polygonAttributes.parse_attributes(polygonAttrData, self.report)
+                material.polygonAttributes = polygonAttributes
+                textureImageParamData = read32(material_data, 0x14)
+                textureImageParam = NSBMDMaterialTextureImageParameters()
+                textureImageParam.parse_parameters(textureImageParamData, self.report)
+                material.textureImageParameters = textureImageParam
+                texturePaletteBase = read16(material_data, 0x1C)
+                texturePaletteBase = texturePaletteBase << 3 if material.textureImageParameters.textureFormat == TextureFormat.PLTT4 else texturePaletteBase << 4
+                material.texturePaletteBase = texturePaletteBase
+                log('Texture palette base: %d' % texturePaletteBase, self.report)
+                flagsData = read16(material_data, 0x1E)
+                flags = NSBMDMaterialFlags()
+                flags.parse_flags(flagsData, self.report)
+                material.materialFlags = flags
+                material.originWidth = read16(material_data, 0x20)
+                log('Origin width: %d' % material.originWidth, self.report)
+                material.originHeight = read16(material_data, 0x22)
+                log('Origin height: %d' % material.originHeight, self.report)
+                widthMagnitude = fixed_to_float(read32(material_data, 0x24))
+                material.widthMagnitude = widthMagnitude
+                log('Width magnitude: %.12f' % widthMagnitude, self.report)
+                heightMagnitude = fixed_to_float(read32(material_data, 0x28))
+                material.heightMagnitude = heightMagnitude
+                log('Height magnitude: %.12f' % heightMagnitude, self.report)
+                materialOffset = 0x2C
+                if material.materialFlags.scaleOne:
+                    material.scaleS = 1.0
+                    material.scaleT = 1.0
+                else:
+                    material.scaleS = fixed_to_float(read32(material_data, materialOffset))
+                    material.scaleT = fixed_to_float(read32(material_data, materialOffset + 4))
+                    materialOffset += 8
+                log('Scale S: %.12f' % material.scaleS, self.report)
+                log('Scale T: %.12f' % material.scaleT, self.report)
+                if material.materialFlags.rotationZero:
+                    material.rotationSin = 0.0
+                    material.rotationCos = 1.0
+                else:
+                    material.rotationSin = fixed_to_float(read32(material_data, materialOffset))
+                    material.rotationCos = fixed_to_float(read32(material_data, materialOffset + 4))
+                    materialOffset += 8
+                log('Rotation sin: %.12f' % material.rotationSin, self.report)
+                log('Rotation cos: %.12f' % material.rotationCos, self.report)
+                if material.materialFlags.translationZero:
+                    material.translationS = 0.0
+                    material.translationT = 0.0
+                else:
+                    material.translationS = fixed_to_float(read32(material_data, materialOffset))
+                    material.translationT = fixed_to_float(read32(material_data, materialOffset + 4))
+                    materialOffset += 8
+                log('Translation S: %.12f' % material.translationS, self.report)
+                log('Translation T: %.12f' % material.translationT, self.report)
+                if material.materialFlags.effectMatrixUse:
+                    effectMatrix = []
+                    for i in range(16):
+                        effectMatrix.append(fixed_to_float(read32(material_data, materialOffset)))
+                        materialOffset += 4
+                    material.effectMatrix = np.array(effectMatrix).reshape((4, 4))
+                else:
+                    material.effectMatrix = None
+                log('Effect matrix: %s' % material.effectMatrix, self.report)
+                model.add_material(material)
+
+            for text_mat_key, text_mat_value in text_to_mat_dictionary.items():
+                text_mat_offset = text_mat_value & 0xFFFF
+                text_mat_number = text_mat_value >> 16 & 0xFF
+                text_mat_bound = text_mat_value >> 24 & 0xFF
+                text_mat_data = materialset_data[text_mat_offset:]
+                for i in range(text_mat_number):
+                    material_id = read8(text_mat_data, i)
+                    text_mat = NSBMDTextureMaterialData(text_mat_key, material_id, text_mat_bound)
+                    model.materials[material_id].add_texture_mat_data(text_mat)
+            
+            for pltt_mat_key, pltt_mat_value in pltt_to_mat_dictionary.items():
+                pltt_mat_offset = pltt_mat_value & 0xFFFF
+                pltt_mat_number = pltt_mat_value >> 16 & 0xFF
+                pltt_mat_bound = pltt_mat_value >> 24 & 0xFF
+                pltt_mat_data = materialset_data[pltt_mat_offset:]
+                for i in range(pltt_mat_number):
+                    material_id = read8(pltt_mat_data, i)
+                    pltt_mat = NSBMDPaletteMaterialData(pltt_mat_key, material_id, pltt_mat_bound)
+                    model.materials[material_id].add_palette_mat_data(pltt_mat)
+            
+
+
         #todo
         return nsbmd

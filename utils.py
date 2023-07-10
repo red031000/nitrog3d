@@ -50,3 +50,6 @@ def parse_dictionary(data):
 
 def fixed_to_float(value):
     return float(value / 4096.0)
+
+def to_rgb(color):
+    return (color & 0x1F, (color >> 5) & 0x1F, (color >> 10) & 0x1F)
