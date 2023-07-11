@@ -1,6 +1,7 @@
 from enum import IntEnum, IntFlag
 from os.path import isfile
 from .utils import read8, read16, read32, read_str, log, debug, parse_dictionary, fixed_to_float, to_rgb
+from .g3_commands import parse_dl
 import numpy as np
 
 class ScalingRule(IntEnum):
@@ -393,6 +394,33 @@ class NSBMDMaterial():
     def add_palette_mat_data(self, palette_mat_data):
         self.paletteMatData.append(palette_mat_data)
 
+class ShapeFlags(IntFlag):
+    USE_NORMAL = 0x0001
+    USE_COLOR = 0x0002
+    USE_TEXCOORD = 0x0004
+    USE_RESTOREMTX = 0x0008
+
+class NSBMDShape():
+    def __init__(self, name):
+        self.name = name
+        self.useNormal = False
+        self.useColor = False
+        self.useTexCoord = False
+        self.useRestoreMtx = False
+    
+    def parse_flags(self, flags, report_func):
+        self.useNormal = (flags & ShapeFlags.USE_NORMAL) != 0
+        log('Use normal: %s' % self.useNormal, report_func)
+
+        self.useColor = (flags & ShapeFlags.USE_COLOR) != 0
+        log('Use color: %s' % self.useColor, report_func)
+
+        self.useTexCoord = (flags & ShapeFlags.USE_TEXCOORD) != 0
+        log('Use tex coord: %s' % self.useTexCoord, report_func)
+
+        self.useRestoreMtx = (flags & ShapeFlags.USE_RESTOREMTX) != 0
+        log('Use restore mtx: %s' % self.useRestoreMtx, report_func)
+
 class NSBMDModel():
     def __init__(self, name):
         self.name = name
@@ -541,11 +569,12 @@ class NSBMDImporter():
                 if material_value < matIdxDataEnd:
                     matIdxDataEnd = material_value
             
-            dict_size = read16(materialset_data[offsetDictPlttToMat:], 2)
+            dict_size = read16(materialset_data[offsetDictPlttToMat:], 0x2)
             model.matIdxData = materialset_data[offsetDictPlttToMat + dict_size:matIdxDataEnd].tobytes() # no idea how this is used, but essential
             log('Material id data: %s' % model.matIdxData.hex(" "), self.report)
             
             for material_key, material_value in materialset_dictionary.items():
+                log('%s: %08X' % (material_key, material_value), self.report)
                 material = NSBMDMaterial(material_key)
                 material_data = materialset_data[material_value:]
                 diffAmb = read32(material_data, 0x04)
@@ -646,8 +675,18 @@ class NSBMDImporter():
                     material_id = read8(pltt_mat_data, i)
                     pltt_mat = NSBMDPaletteMaterialData(pltt_mat_key, material_id, pltt_mat_bound)
                     model.materials[material_id].add_palette_mat_data(pltt_mat)
-            
 
+            shape_data = data[shape_offset:]
+            shape_dictionary = parse_dictionary(shape_data)
+            for shape_key, shape_value in shape_dictionary.items():
+                log('%s: %08X' % (shape_key, shape_value), self.report)
+                shape = NSBMDShape(shape_key)
+                shape_item_data = shape_data[shape_value:]
+                shape_flags = read32(shape_item_data, 0x04)
+                shape.parse_flags(shape_flags, self.report)
+                shape_dl_offset = read32(shape_item_data, 0x08)
+                shape_dl_size = read32(shape_item_data, 0x0C)
+                shape.dlData = parse_dl(shape_data[shape_dl_offset:], shape_dl_size, self.report)
 
         #todo
         return nsbmd

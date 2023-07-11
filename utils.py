@@ -24,6 +24,9 @@ def read_dict_string(data, offset):
 def log(string, report_func):
     report_func(type={"INFO"}, message=string)
 
+def error(string, report_func):
+    report_func(type={"ERROR"}, message=string)
+
 def debug(string, report_func):
     report_func(type={"DEBUG"}, message=string)
 
@@ -53,3 +56,9 @@ def fixed_to_float(value):
 
 def to_rgb(color):
     return (color & 0x1F, (color >> 5) & 0x1F, (color >> 10) & 0x1F)
+
+def np_fixed_to_float(value):
+    return (value / 4096.0).astype('float')
+
+def vec10_to_vec(value):
+    return (value & 0x3FF, (value >> 10) & 0x3FF, (value >> 20) & 0x3FF)
