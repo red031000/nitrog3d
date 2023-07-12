@@ -94,6 +94,43 @@ def parse_dl_command(data, offset, commandData, report_func):
             t = fixed_to_float(((texcoord >> 16) & 0xFFFF) << 8)
             offset += 4
             commands.append(DLCommandTexcoord(s, t))
+        elif command == 0x23:
+            xy = read32(data, offset)
+            z = fixed_to_float(read32(data, offset + 4))
+            x = fixed_to_float(xy & 0xFFFF)
+            y = fixed_to_float((xy >> 16) & 0xFFFF)
+            vertex = np.array([x, y, z])
+            offset += 8
+            commands.append(DLCommandVtx(vertex))
+        elif command == 0x24:
+            vertex = vec10_to_vec(read32(data, offset))
+            offset += 4
+            commands.append(DLCommandVtx(vertex))
+        elif command == 0x25:
+            xy = read32(data, offset)
+            x = fixed_to_float(xy & 0xFFFF)
+            y = fixed_to_float((xy >> 16) & 0xFFFF)
+            vertex = np.array([x, y])
+            offset += 4
+            commands.append(DLCommandVtxXY(vertex))
+        elif command == 0x26:
+            xz = read32(data, offset)
+            x = fixed_to_float(xz & 0xFFFF)
+            z = fixed_to_float((xz >> 16) & 0xFFFF)
+            vertex = np.array([x, z])
+            offset += 4
+            commands.append(DLCommandVtxXZ(vertex))
+        elif command == 0x27:
+            yz = read32(data, offset)
+            y = fixed_to_float(yz & 0xFFFF)
+            z = fixed_to_float((yz >> 16) & 0xFFFF)
+            vertex = np.array([y, z])
+            offset += 4
+            commands.append(DLCommandVtxYZ(vertex))
+        elif command == 0x28:
+            vertex = vec10_to_vec(read32(data, offset))
+            offset += 4
+            commands.append(DLCommandVtxDiff(vertex))
         #todo more commands
     return commands, offset
 
@@ -189,3 +226,33 @@ class DLCommandTexcoord(DLCommand):
         super().__init__(0x22)
         self.s = s
         self.t = t
+
+class DLCommandVtx(DLCommand):
+    def __init__(self, vertex):
+        super().__init__(0x23)
+        self.vertex = vertex
+
+class DLCommandVtx10(DLCommand):
+    def __init__(self, vertex):
+        super().__init__(0x24)
+        self.vertex = vertex
+
+class DLCommandVtxXY(DLCommand):
+    def __init__(self, vertex):
+        super().__init__(0x25)
+        self.vertex = vertex
+
+class DLCommandVtxXZ(DLCommand):
+    def __init__(self, vertex):
+        super().__init__(0x26)
+        self.vertex = vertex
+
+class DLCommandVtxYZ(DLCommand):
+    def __init__(self, vertex):
+        super().__init__(0x27)
+        self.vertex = vertex
+
+class DLCommandVtxDiff(DLCommand):
+    def __init__(self, vertex):
+        super().__init__(0x28)
+        self.vertex = vertex

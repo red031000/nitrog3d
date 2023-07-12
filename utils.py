@@ -1,3 +1,5 @@
+import numpy as np
+
 def read8(data, offset):
     return data[offset]
 
@@ -61,4 +63,4 @@ def np_fixed_to_float(value):
     return (value / 4096.0).astype('float')
 
 def vec10_to_vec(value):
-    return (value & 0x3FF, (value >> 10) & 0x3FF, (value >> 20) & 0x3FF)
+    return np_fixed_to_float(np.array([value & 0x3FF, (value >> 10) & 0x3FF, (value >> 20) & 0x3FF]))
