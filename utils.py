@@ -1,3 +1,4 @@
+from enum import IntEnum
 import numpy as np
 
 def read8(data, offset):
@@ -64,3 +65,15 @@ def np_fixed_to_float(value):
 
 def vec10_to_vec(value):
     return np_fixed_to_float(np.array([value & 0x3FF, (value >> 10) & 0x3FF, (value >> 20) & 0x3FF]))
+
+class PolygonMode(IntEnum):
+    MODULATE = 0
+    DECAL = 1
+    TOON = 2
+    SHADOW = 3
+
+class CullMode(IntEnum):
+    NONE = 0
+    FRONT = 1
+    BACK = 2
+    BOTH = 3 

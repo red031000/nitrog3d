@@ -1,4 +1,4 @@
-from .utils import error, read32, np_fixed_to_float, fixed_to_float, to_rgb, vec10_to_vec
+from .utils import error, read32, np_fixed_to_float, fixed_to_float, to_rgb, vec10_to_vec, PolygonMode, CullMode
 from enum import IntEnum
 import numpy as np
 
@@ -131,6 +131,12 @@ def parse_dl_command(data, offset, commandData, report_func):
             vertex = vec10_to_vec(read32(data, offset))
             offset += 4
             commands.append(DLCommandVtxDiff(vertex))
+        elif command == 0x29:
+            attributes = read32(data, offset)
+            offset += 4
+            polyAttr = DLCommandPolygonAttr()
+            polyAttr.parse(attributes)
+            commands.append(polyAttr)
         #todo more commands
     return commands, offset
 
@@ -256,3 +262,46 @@ class DLCommandVtxDiff(DLCommand):
     def __init__(self, vertex):
         super().__init__(0x28)
         self.vertex = vertex
+
+class DLCommandPolygonAttr(DLCommand):
+    def __init__(self):
+        super().__init__(0x29)
+        self.lights = [False, False, False, False]
+        self.polyMode = PolygonMode.MODULATE
+        self.cullMode = CullMode.NONE
+        self.polygonId = 0
+        self.alpha = 0
+        self.xluDepthUpdate = False
+        self.farClipping = False
+        self.display1Dot = False
+        self.depthTest = False
+        self.fog = False
+        
+    def parse(self, attributes):
+        light = attributes & 0xF
+        self.lights[0] = (light & 0x1) != 0
+        self.lights[1] = (light & 0x2) != 0
+        self.lights[2] = (light & 0x4) != 0
+        self.lights[3] = (light & 0x8) != 0
+
+        polyMode = (attributes >> 4) & 0x3
+        self.polyMode = PolygonMode(polyMode)
+
+        cullMode = (attributes >> 6) & 0x3
+        self.cullMode = CullMode(cullMode)
+
+        polygonId = (attributes >> 24) & 0x3F
+        self.polygonId = polygonId
+
+        alpha = (attributes >> 16) & 0x1F
+        self.alpha = alpha
+
+        self.xluDepthUpdate = (attributes >> 11) & 0x1 != 0
+
+        self.farClipping = (attributes >> 12) & 0x1 != 0
+
+        self.display1Dot = (attributes >> 13) & 0x1 != 0
+
+        self.depthTest = (attributes >> 14) & 0x1 != 0
+
+        self.fog = (attributes >> 15) & 0x1 != 0

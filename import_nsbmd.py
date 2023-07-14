@@ -1,6 +1,6 @@
 from enum import IntEnum, IntFlag
 from os.path import isfile
-from .utils import read8, read16, read32, read_str, log, debug, parse_dictionary, fixed_to_float, to_rgb
+from .utils import read8, read16, read32, read_str, log, debug, parse_dictionary, fixed_to_float, to_rgb, PolygonMode, CullMode
 from .g3_commands import parse_dl
 import numpy as np
 
@@ -144,18 +144,6 @@ class NSBMDTextureMaterialData():
         self.name = name
         self.materialId = material_id
         self.bound = bound
-
-class PolygonMode(IntEnum):
-    MODULATE = 0
-    DECAL = 1
-    TOON = 2
-    SHADOW = 3
-
-class CullMode(IntEnum):
-    NONE = 0
-    FRONT = 1
-    BACK = 2
-    BOTH = 3
 
 class NSBMDMaterialPolygonAttributes():
     def __init__(self):
