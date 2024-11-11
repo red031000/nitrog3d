@@ -77,3 +77,55 @@ class CullMode(IntEnum):
     FRONT = 1
     BACK = 2
     BOTH = 3 
+
+class TexturePalette0Mode(IntEnum):
+    USE = 0
+    TRANSPARENT = 1
+
+class TextureFlip(IntEnum):
+    NONE = 0
+    S = 1
+    T = 2
+    ST = 3
+
+class TextureRepeat(IntEnum):
+    NONE = 0
+    S = 1
+    T = 2
+    ST = 3
+
+class TextureTSize(IntEnum):
+    T8 = 0
+    T16 = 1
+    T32 = 2
+    T64 = 3
+    T128 = 4
+    T256 = 5
+    T512 = 6
+    T1024 = 7
+
+class TextureSSize(IntEnum):
+    S8 = 0
+    S16 = 1
+    S32 = 2
+    S64 = 3
+    S128 = 4
+    S256 = 5
+    S512 = 6
+    S1024 = 7
+
+class TextureConversionMode(IntEnum):
+    NONE = 0
+    TEXCOORD = 1
+    NORMAL = 2
+    VERTEX = 3
+
+class TextureFormat(IntEnum):
+    NONE = 0
+    A3I5 = 1
+    PLTT4 = 2
+    PLTT16 = 3
+    PLTT256 = 4
+    COMP4X4 = 5
+    A5I3 = 6
+    DIRECT = 7

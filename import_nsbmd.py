@@ -1,6 +1,6 @@
 from enum import IntEnum, IntFlag
 from os.path import isfile
-from .utils import read8, read16, read32, read_str, log, debug, parse_dictionary, fixed_to_float, to_rgb, PolygonMode, CullMode
+from .utils import read8, read16, read32, read_str, log, debug, parse_dictionary, fixed_to_float, to_rgb, PolygonMode, CullMode, TexturePalette0Mode, TextureFlip, TextureRepeat, TextureTSize, TextureSSize, TextureConversionMode, TextureFormat
 from .g3_commands import parse_dl
 import numpy as np
 
@@ -197,58 +197,6 @@ class NSBMDMaterialPolygonAttributes():
 
         self.fog = (attributes >> 15) & 0x1 != 0
         log('Fog: %s' % self.fog, report_func)
-
-class TextureFormat(IntEnum):
-    NONE = 0
-    A3I5 = 1
-    PLTT4 = 2
-    PLTT16 = 3
-    PLTT256 = 4
-    COMP4X4 = 5
-    A5I3 = 6
-    DIRECT = 7
-
-class TextureConversionMode(IntEnum):
-    NONE = 0
-    TEXCOORD = 1
-    NORMAL = 2
-    VERTEX = 3
-
-class TextureSSize(IntEnum):
-    S8 = 0
-    S16 = 1
-    S32 = 2
-    S64 = 3
-    S128 = 4
-    S256 = 5
-    S512 = 6
-    S1024 = 7
-
-class TextureTSize(IntEnum):
-    T8 = 0
-    T16 = 1
-    T32 = 2
-    T64 = 3
-    T128 = 4
-    T256 = 5
-    T512 = 6
-    T1024 = 7
-
-class TextureRepeat(IntEnum):
-    NONE = 0
-    S = 1
-    T = 2
-    ST = 3
-
-class TextureFlip(IntEnum):
-    NONE = 0
-    S = 1
-    T = 2
-    ST = 3
-
-class TexturePalette0Mode(IntEnum):
-    USE = 0
-    TRANSPARENT = 1
 
 class NSBMDMaterialTextureImageParameters():
     def __init__(self):

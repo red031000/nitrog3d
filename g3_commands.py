@@ -1,4 +1,4 @@
-from .utils import error, read32, np_fixed_to_float, fixed_to_float, to_rgb, vec10_to_vec, PolygonMode, CullMode
+from .utils import error, read32, np_fixed_to_float, fixed_to_float, to_rgb, vec10_to_vec, PolygonMode, CullMode, TexturePalette0Mode, TextureFlip, TextureRepeat, TextureTSize, TextureSSize, TextureConversionMode, TextureFormat
 from enum import IntEnum
 import numpy as np
 
@@ -137,6 +137,12 @@ def parse_dl_command(data, offset, commandData, report_func):
             polyAttr = DLCommandPolygonAttr()
             polyAttr.parse(attributes)
             commands.append(polyAttr)
+        elif command == 0x2A:
+            attributes = read32(data, offset)
+            offset += 4
+            texImageParam = DLCommandTexImageParam()
+            texImageParam.parse(attributes)
+            commands.append(texImageParam)
         #todo more commands
     return commands, offset
 
@@ -305,3 +311,39 @@ class DLCommandPolygonAttr(DLCommand):
         self.depthTest = (attributes >> 14) & 0x1 != 0
 
         self.fog = (attributes >> 15) & 0x1 != 0
+
+class DLCommandTexImageParam(DLCommand):
+    def __init__(self):
+        super().__init__(0x2A)
+        self.texturePalette0Mode = TexturePalette0Mode.USE
+        self.textureFlip = TextureFlip.NONE
+        self.textureRepeat = TextureRepeat.NONE
+        self.textureTSize = TextureTSize.T8
+        self.textureSSize = TextureSSize.S8
+        self.textureConversionMode = TextureConversionMode.NONE
+        self.textureFormat = TextureFormat.NONE
+        self.textureAddress = 0
+    
+    def parse(self, attributes):
+        texturePalette0Mode = (attributes >> 29) & 0x1
+        self.texturePalette0Mode = TexturePalette0Mode(texturePalette0Mode)
+
+        textureFlip = (attributes >> 18) & 0x3
+        self.textureFlip = TextureFlip(textureFlip)
+
+        textureRepeat = (attributes >> 16) & 0x3
+        self.textureRepeat = TextureRepeat(textureRepeat)
+
+        textureTSize = (attributes >> 23) & 0x7
+        self.textureTSize = TextureTSize(textureTSize)
+
+        textureSSize = (attributes >> 20) & 0x7
+        self.textureSSize = TextureSSize(textureSSize)
+
+        textureConversionMode = (attributes >> 30) & 0x3
+        self.textureConversionMode = TextureConversionMode(textureConversionMode)
+
+        textureFormat = (attributes >> 26) & 0x7
+        self.textureFormat = TextureFormat(textureFormat)
+
+        self.textureAddress = attributes & 0xFFFF
