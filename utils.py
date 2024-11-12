@@ -129,3 +129,17 @@ class TextureFormat(IntEnum):
     COMP4X4 = 5
     A5I3 = 6
     DIRECT = 7
+
+class PrimitiveType(IntEnum):
+    TRIANGLES = 0
+    QUADS = 1
+    TRIANGLE_STRIP = 2
+    QUAD_STRIP = 3
+
+class TranslucentPolygonSortMode(IntEnum):
+    AUTO = 0
+    MANUAL = 1
+
+class DepthBufferSelection(IntEnum):
+    Z = 0
+    W = 1

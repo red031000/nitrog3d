@@ -1,4 +1,4 @@
-from .utils import error, read8, read32, np_fixed_to_float, fixed_to_float, to_rgb, vec10_to_vec, PolygonMode, CullMode, TexturePalette0Mode, TextureFlip, TextureRepeat, TextureTSize, TextureSSize, TextureConversionMode, TextureFormat
+from .utils import error, read8, read32, np_fixed_to_float, fixed_to_float, to_rgb, vec10_to_vec, PolygonMode, CullMode, TexturePalette0Mode, TextureFlip, TextureRepeat, TextureTSize, TextureSSize, TextureConversionMode, TextureFormat, PrimitiveType, TranslucentPolygonSortMode, DepthBufferSelection
 from enum import IntEnum
 import numpy as np
 
@@ -163,10 +163,7 @@ def parse_dl_command(data, offset, commandData, report_func):
             attributes = read32(data, offset)
             offset += 4
             lightId = (attributes >> 30) & 0x3
-            x = fixed_to_float(attributes & 0x3FFF)
-            y = fixed_to_float((attributes >> 0xA) & 0x3FFF)
-            z = fixed_to_float((attributes >> 0x14) & 0x3FFF)
-            vertex = np.array([x, y, z])
+            vertex = vec10_to_vec(attributes)
             commands.append(DLCommandLightVector(lightId, vertex))
         elif command == 0x33:
             attributes = read32(data, offset)
@@ -184,8 +181,41 @@ def parse_dl_command(data, offset, commandData, report_func):
                 shininessTable.append((shininess >> 16) & 0xFF)
                 shininessTable.append((shininess >> 24) & 0xFF)
             commands.append(DLCommandShininess(shininessTable))
-            
-        #todo more commands
+        elif command == 0x40:
+            primitiveType = PrimitiveType(read32(data, offset) & 0x3)
+            offset += 4
+            commands.append(DLCommandBegin(primitiveType))
+        elif command == 0x41:
+            commands.append(DLCommandEnd())
+        elif command == 0x50:
+            attributes = read32(data, offset)
+            offset += 4
+            am = TranslucentPolygonSortMode(attributes & 0x1)
+            wz = DepthBufferSelection((attributes >> 1) & 0x1)
+            commands.append(DLCommandSwapBuffers(am, wz))
+        elif command == 0x60:
+            attributes = read32(data, offset)
+            offset += 4
+            x1 = attributes & 0xFF
+            y1 = (attributes >> 8) & 0xFF
+            x2 = (attributes >> 16) & 0xFF
+            y2 = (attributes >> 24) & 0xFF
+            vector = np.array([x1, x2, y1, y2])
+            commands.append(DLCommandViewport(vector))
+        elif command == 0x70:
+            # BoxTest (0x70) not implemented
+            offset += 3
+        elif command == 0x71:
+            # PositionTest (0x71) not implemented
+            offset += 2
+        elif command == 0x72:
+            # VectorTest (0x72) not implemented
+            offset += 1
+        elif command == 0xFF:
+            # DummyCommand (0xFF) not implemented
+            pass
+        else:
+            error('Unrecognised DL command: %02x. Parameter offsets are likely incorrect!' % command, report_func)
     return commands, offset
 
 class MatrixMode(IntEnum):
@@ -435,3 +465,23 @@ class DLCommandShininess(DLCommand):
     def __init__(self, shininessTable):
         super().__init__(0x34)
         self.shininessTable = shininessTable
+
+class DLCommandBegin(DLCommand):
+    def __init__(self, primitiveType):
+        super().__init__(0x40)
+        self.primitiveType = primitiveType
+
+class DLCommandEnd(DLCommand):
+    def __init__(self):
+        super().__init__(0x41)
+
+class DLCommandSwapBuffers(DLCommand):
+    def __init__(self, translucentPolygonSortMode, depthBufferSelection):
+        super().__init__(0x50)
+        self.translucentPolygonSortMode = translucentPolygonSortMode
+        self.depthBufferSelection = depthBufferSelection
+
+class DLCommandViewport(DLCommand):
+    def __init__(self, vector):
+        super().__init__(0x60)
+        self.vector = vector
