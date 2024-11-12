@@ -1,4 +1,4 @@
-from .utils import error, read32, np_fixed_to_float, fixed_to_float, to_rgb, vec10_to_vec, PolygonMode, CullMode, TexturePalette0Mode, TextureFlip, TextureRepeat, TextureTSize, TextureSSize, TextureConversionMode, TextureFormat
+from .utils import error, read8, read32, np_fixed_to_float, fixed_to_float, to_rgb, vec10_to_vec, PolygonMode, CullMode, TexturePalette0Mode, TextureFlip, TextureRepeat, TextureTSize, TextureSSize, TextureConversionMode, TextureFormat
 from enum import IntEnum
 import numpy as np
 
@@ -143,6 +143,48 @@ def parse_dl_command(data, offset, commandData, report_func):
             texImageParam = DLCommandTexImageParam()
             texImageParam.parse(attributes)
             commands.append(texImageParam)
+        elif command == 0x2B:
+            address = read32(data, offset)
+            offset += 4
+            commands.append(DLCommandTexPlttBase(address))
+        elif command == 0x30:
+            attributes = read32(data, offset)
+            offset += 4
+            materialColourDiffAmb = DLCommandMaterialColourDiffAmb()
+            materialColourDiffAmb.parse(attributes)
+            commands.append(materialColourDiffAmb)
+        elif command == 0x31:
+            attributes = read32(data, offset)
+            offset += 4
+            materialColourSpecEmi = DLCommandMaterialColourSpecEmi()
+            materialColourSpecEmi.parse(attributes)
+            commands.append(materialColourSpecEmi)
+        elif command == 0x32:
+            attributes = read32(data, offset)
+            offset += 4
+            lightId = (attributes >> 30) & 0x3
+            x = fixed_to_float(attributes & 0x3FFF)
+            y = fixed_to_float((attributes >> 0xA) & 0x3FFF)
+            z = fixed_to_float((attributes >> 0x14) & 0x3FFF)
+            vertex = np.array([x, y, z])
+            commands.append(DLCommandLightVector(lightId, vertex))
+        elif command == 0x33:
+            attributes = read32(data, offset)
+            offset += 4
+            lightId = (attributes >> 30) & 0x3
+            rgb = to_rgb(attributes & 0x7FFF)
+            commands.append(DLCommandLightColour(lightId, rgb))
+        elif command == 0x34:
+            shininessTable = []
+            for j in range(32):
+                shininess = read32(data, offset)
+                offset += 4
+                shininessTable.append(shininess & 0xFF)
+                shininessTable.append((shininess >> 8) & 0xFF)
+                shininessTable.append((shininess >> 16) & 0xFF)
+                shininessTable.append((shininess >> 24) & 0xFF)
+            commands.append(DLCommandShininess(shininessTable))
+            
         #todo more commands
     return commands, offset
 
@@ -347,3 +389,49 @@ class DLCommandTexImageParam(DLCommand):
         self.textureFormat = TextureFormat(textureFormat)
 
         self.textureAddress = attributes & 0xFFFF
+
+class DLCommandTexPlttBase(DLCommand):
+    def __init__(self, address):
+        super().__init__(0x2B)
+        self.paletteAddress = address
+
+class DLCommandMaterialColourDiffAmb(DLCommand):
+    def __init__(self):
+        super().__init__(0x30)
+        self.diffuse = (0, 0, 0)
+        self.ambient = (0, 0, 0)
+        self.isVertexColour = False
+
+    def parse(self, attributes):
+        self.diffuse = to_rgb(attributes & 0x7FFF)
+        self.isVertexColour = (attributes >> 15) & 0x1 != 0
+        self.ambient = to_rgb((attributes >> 16) & 0x7FFF)
+
+class DLCommandMaterialColourSpecEmi(DLCommand):
+    def __init__(self):
+        super().__init__(0x31)
+        self.specular = (0, 0, 0)
+        self.emission = (0, 0, 0)
+        self.isShininess = False
+
+    def parse(self, attributes):
+        self.specular = to_rgb(attributes & 0x7FFF)
+        self.isShininess = (attributes >> 15) & 0x1 != 0
+        self.emission = to_rgb((attributes >> 16) & 0x7FFF)
+
+class DLCommandLightVector(DLCommand):
+    def __init__(self, lightId, vertex):
+        super().__init__(0x32)
+        self.lightId = lightId
+        self.vertex = vertex
+
+class DLCommandLightColour(DLCommand):
+    def __init__(self, lightId, colour):
+        super().__init__(0x33)
+        self.lightId = lightId
+        self.colour = colour
+
+class DLCommandShininess(DLCommand):
+    def __init__(self, shininessTable):
+        super().__init__(0x34)
+        self.shininessTable = shininessTable
